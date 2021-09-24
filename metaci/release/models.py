@@ -13,6 +13,25 @@ from metaci.plan.models import PlanRepository
 from metaci.release.utils import update_release_from_github
 
 
+class ReleaseCohort(models.Model):
+    name = models.CharField(_("name"), max_length=255)
+    status_choices = [
+        ("Planned", "Planned"),
+        ("Active", "Active"),
+        ("Canceled", "Canceled"),
+    ]
+    status = models.CharField(
+        max_length=9,
+        choices=status_choices,
+        default="Planned",
+    )
+    merge_freeze_start = models.DateTimeField(_("Merge Freeze Start Time"))
+    merge_freeze_end = models.DateTimeField(_("Merge Freeze End Time"))
+
+    def __str__(self):
+        return self.name
+
+
 class ChangeCaseTemplate(models.Model):
     name = models.CharField(_("name"), max_length=255)
     case_template_id = models.CharField(_("case template id"), max_length=18)
@@ -74,14 +93,15 @@ class DefaultImplementationStep(BaseModel):
     def _push_time(self, start):
         if self.push_time is None:
             return None
-        return timezone.make_aware(datetime.datetime.combine(start.date(), datetime.time(self.push_time)))
+        return timezone.make_aware(
+            datetime.datetime.combine(start.date(), datetime.time(self.push_time))
+        )
 
 
 class Release(StatusModel):
     STATUS = Choices("draft", "published", "hidden")
     created = AutoCreatedField(_("created"))
     modified = AutoLastModifiedField(_("modified"))
-
     repo = models.ForeignKey(
         "repository.Repository", on_delete=models.CASCADE, related_name="releases"
     )
@@ -132,6 +152,13 @@ class Release(StatusModel):
         on_delete=models.PROTECT,
         null=False,
         blank=False,
+    )
+    release_cohort = models.ForeignKey(
+        "release.ReleaseCohort",
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        default=None,
     )
     change_case_link = models.CharField(
         _("change case ID"), max_length=1024, null=True, blank=True
